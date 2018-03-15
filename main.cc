@@ -3,9 +3,9 @@
 
 int main(int argc, char const* argv[])
 {
-	LSTM network(60, 60, 0.05);
+	LSTM network(60, 60, 0.001);
 	network.load("./samples/samples.txt");
-	// network.train(500, 50);
-	// network.output(100);
+	network.train(1000, 10);
+	network.output(400);
 	return 0;
 }

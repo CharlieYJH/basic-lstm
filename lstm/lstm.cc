@@ -40,6 +40,12 @@ void LSTM::load(const std::string &filename)
 	return;
 }
 
+void LSTM::reset(void)
+{
+	m_state.setZero();
+	m_output.setZero();
+}
+
 void LSTM::feedforward(Eigen::ArrayXd &input)
 {
 	// Input activation
@@ -178,6 +184,8 @@ void LSTM::train(size_t epochs, size_t batch_size)
 
 	for (int i = 0; i < epochs; i++) {
 
+		reset();
+
 		char curr_char = ' ';
 		char next_char = ' ';
 
@@ -247,7 +255,7 @@ void LSTM::train(size_t epochs, size_t batch_size)
 			backpropogate(a_t_cache, i_t_cache, f_t_cache, o_t_cache, state_cache, input_cache, output_cache, loss_cache);
 			
 			// Display the current iteration and loss
-			if (iteration % 100 == 0) {
+			if (iteration % 1000 == 0) {
 				std::cout << "Iter: " << iteration << " " << "Loss: " << loss << std::endl;
 			}
 
@@ -260,6 +268,7 @@ void LSTM::train(size_t epochs, size_t batch_size)
 
 void LSTM::output(const size_t iterations)
 {
+	reset();
 	Eigen::ArrayXd input = Eigen::ArrayXd::Zero(m_input_size);
 
 	for (int i = 0; i < iterations; i++) {

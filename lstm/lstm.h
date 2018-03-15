@@ -50,6 +50,7 @@ class LSTM
 	// File containing training samples
 	std::ifstream m_infile;
 
+	void reset(void);
 	void feedforward(Eigen::ArrayXd &input);
 	void backpropogate(
 			std::vector<Eigen::ArrayXd> &a_t_cache,
