@@ -71,7 +71,8 @@ class LSTM
 
 	LSTM(size_t input_size, size_t output_size, float learning_rate);
 	void load(const std::string &filename);
-	void train(size_t epochs, size_t batch_size);
+	void train(const size_t epochs, const size_t batch_size);
+	void output(const size_t iterations);
 };
 
 #endif

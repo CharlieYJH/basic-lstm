@@ -165,27 +165,14 @@ void LSTM::backpropogate(
 	m_bi -= m_rate * d_bi;
 	m_bf -= m_rate * d_bf;
 	m_bo -= m_rate * d_bo;
+
+	return;
 }
 
 void LSTM::train(size_t epochs, size_t batch_size)
 {
 	if (!m_infile)
 		throw std::runtime_error("No training samples currently open");
-
-	// m_Wa << 0.45, 0.25;
-	// m_Wi << 0.95, 0.8;
-	// m_Wf << 0.7, 0.45;
-	// m_Wo << 0.6, 0.4;
-
-	// m_Ra << 0.15;
-	// m_Ri << 0.8;
-	// m_Rf << 0.1;
-	// m_Ro << 0.25;
-
-	// m_ba << 0.2;
-	// m_bi << 0.65;
-	// m_bf << 0.15;
-	// m_bo << 0.1;
 
 	size_t iteration = 0;
 
@@ -222,9 +209,11 @@ void LSTM::train(size_t epochs, size_t batch_size)
 			// Iterate through each batch
 			for (int j = 0; j < batch_size; j++) {
 
+				// Get current character and the next one to use as input and label
 				m_infile.get(curr_char);
 				next_char = m_infile.peek();
 
+				// If we've reached the end of the training sample, end the batch early
 				if (next_char == std::ifstream::traits_type::eof()) {
 					m_infile.clear();
 					m_infile.seekg(0);
@@ -234,12 +223,14 @@ void LSTM::train(size_t epochs, size_t batch_size)
 				Eigen::ArrayXd input = charToVector(curr_char);
 				Eigen::ArrayXd label = charToVector(next_char);
 
+				// Forward pass of the network
 				feedforward(input);
 
+				// Calculate difference between prediction and label and accumulate loss
 				Eigen::ArrayXd diff = m_output - label;
-
 				loss += diff.square().sum();
 
+				// Pushback various network variables to use for backpropogation through time
 				a_t_cache.push_back(m_a_t);
 				i_t_cache.push_back(m_i_t);
 				f_t_cache.push_back(m_f_t);
@@ -251,9 +242,11 @@ void LSTM::train(size_t epochs, size_t batch_size)
 				loss_cache.push_back(diff);
 			}
 
+			// Calculate average loss for this batch and backpropogate
 			loss /= batch_size;
 			backpropogate(a_t_cache, i_t_cache, f_t_cache, o_t_cache, state_cache, input_cache, output_cache, loss_cache);
 			
+			// Display the current iteration and loss
 			if (iteration % 100 == 0) {
 				std::cout << "Iter: " << iteration << " " << "Loss: " << loss << std::endl;
 			}
@@ -261,6 +254,21 @@ void LSTM::train(size_t epochs, size_t batch_size)
 			iteration++;
 		}
 	}
+
+	return;
+}
+
+void LSTM::output(const size_t iterations)
+{
+	Eigen::ArrayXd input = Eigen::ArrayXd::Zero(m_input_size);
+
+	for (int i = 0; i < iterations; i++) {
+		feedforward(input);
+		input = m_output;
+		std::cout << vectorToChar(m_output);
+	}
+
+	return;
 }
 
 double LSTM::sigmoid(double num)
