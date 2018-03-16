@@ -269,12 +269,108 @@ void LSTM::train(size_t epochs, size_t batch_size)
 void LSTM::output(const size_t iterations)
 {
 	reset();
-	Eigen::ArrayXd input = Eigen::ArrayXd::Zero(m_input_size);
+	Eigen::ArrayXd input = charToVector('a');
 
 	for (int i = 0; i < iterations; i++) {
 		feedforward(input);
 		input = m_output;
 		std::cout << vectorToChar(m_output);
+	}
+
+	return;
+}
+
+void LSTM::saveState(const std::string &filename)
+{
+	std::ofstream outfile(filename);
+
+	if (outfile.is_open()) {
+		writeData(m_Wa, "Wa", outfile);
+		writeData(m_Wi, "Wi", outfile);
+		writeData(m_Wf, "Wf", outfile);
+		writeData(m_Wo, "Wo", outfile);
+		writeData(m_Ra, "Ra", outfile);
+		writeData(m_Ri, "Ri", outfile);
+		writeData(m_Rf, "Rf", outfile);
+		writeData(m_Ro, "Ro", outfile);
+		writeData(m_ba, "ba", outfile);
+		writeData(m_bi, "bi", outfile);
+		writeData(m_bf, "bf", outfile);
+		writeData(m_bo, "bo", outfile);
+		outfile.close();
+	} else {
+		throw std::runtime_error("Unable to open " + filename);
+	}
+
+	return;
+}
+
+template<typename T>
+void LSTM::writeData(const T &data, const std::string &id, std::ofstream &outfile)
+{
+	outfile << id << '\t';
+
+	for (int i = 0; i < data.rows(); i++) {
+		for (int j = 0; j < data.cols(); j++) {
+			outfile << data(i, j) << '\t';
+		}
+	}
+
+	outfile << "\r\n";
+	return;
+}
+
+void LSTM::loadState(const std::string &filename)
+{
+	std::ifstream infile(filename);
+
+	if (infile.is_open()) {
+		std::string line;
+		std::string id;
+
+		while (getline(infile, line)) {
+			std::istringstream data(line);
+			data >> id;
+
+			if (id == "Wa")
+				loadData(m_Wa, data);
+			else if (id == "Wi")
+				loadData(m_Wi, data);
+			else if (id == "Wf")
+				loadData(m_Wf, data);
+			else if (id == "Wo")
+				loadData(m_Wo, data);
+			else if (id == "Ra")
+				loadData(m_Ra, data);
+			else if (id == "Ri")
+				loadData(m_Ri, data);
+			else if (id == "Rf")
+				loadData(m_Rf, data);
+			else if (id == "Ro")
+				loadData(m_Ro, data);
+			else if (id == "ba")
+				loadData(m_ba, data);
+			else if (id == "bi")
+				loadData(m_bi, data);
+			else if (id == "bf")
+				loadData(m_bf, data);
+			else if (id == "bo")
+				loadData(m_bo, data);
+		}
+
+		infile.close();
+	} else {
+		throw std::runtime_error("Unable to open file " + filename);
+	}
+}
+
+template<typename T>
+void LSTM::loadData(T &parameter, std::istringstream &data_stream)
+{
+	for (int i = 0; i < parameter.rows(); i++) {
+		for (int j = 0; j < parameter.cols(); j++) {
+			data_stream >> parameter(i, j);
+		}
 	}
 
 	return;

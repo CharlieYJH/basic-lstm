@@ -4,6 +4,7 @@
 #include "Eigen/Dense"
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <cmath>
 #include <vector>
 
@@ -51,7 +52,9 @@ class LSTM
 	std::ifstream m_infile;
 
 	void reset(void);
+
 	void feedforward(Eigen::ArrayXd &input);
+
 	void backpropogate(
 			std::vector<Eigen::ArrayXd> &a_t_cache,
 			std::vector<Eigen::ArrayXd> &i_t_cache,
@@ -63,16 +66,31 @@ class LSTM
 			std::vector<Eigen::ArrayXd> &loss_cache
 	);
 
+	template<typename T>
+	void writeData(const T &data, const std::string &id, std::ofstream &outfile);
+
+	template<typename T>
+	void loadData(T &parameter, std::istringstream &data_stream);
+
 	// Helper functions
 	static double sigmoid(double num);
+
 	Eigen::ArrayXd charToVector(const char &c);
+
 	char vectorToChar(const Eigen::ArrayXd &v);
 
 	public:
 
 	LSTM(size_t input_size, size_t output_size, float learning_rate);
+
 	void load(const std::string &filename);
+
 	void train(const size_t epochs, const size_t batch_size);
+
+	void saveState(const std::string &filename);
+
+	void loadState(const std::string &filename);
+
 	void output(const size_t iterations);
 };
 
