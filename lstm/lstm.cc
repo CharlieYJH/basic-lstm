@@ -27,7 +27,11 @@ LSTM::LSTM(size_t input_size, size_t output_size, float learning_rate)
 	m_state = Eigen::ArrayXd::Zero(output_size);
 	m_output = Eigen::ArrayXd::Zero(output_size);
 
+	// Set learning rate
 	m_rate = learning_rate;
+
+	// Setting default file where weights and biases are saved
+	m_state_file = "./weights.txt";
 }
 
 void LSTM::load(const std::string &filename)
@@ -262,6 +266,11 @@ void LSTM::train(size_t epochs, size_t num_steps)
 
 			iteration++;
 		}
+
+		std::cout << "-------------------------------------------------------------------------" << std::endl;
+		std::cout << "Epoch " << i << " finished. State saved to " << m_state_file << std::endl;
+		std::cout << "-------------------------------------------------------------------------" << std::endl;
+		saveState();
 	}
 
 	return;
@@ -281,9 +290,15 @@ void LSTM::output(const size_t iterations)
 	return;
 }
 
-void LSTM::saveState(const std::string &filename)
+void LSTM::saveTo(const std::string &filename)
 {
-	std::ofstream outfile(filename);
+	m_state_file = filename;
+	return;
+}
+
+void LSTM::saveState(void)
+{
+	std::ofstream outfile(m_state_file);
 
 	if (outfile.is_open()) {
 		writeData(m_Wa, "Wa", outfile);
@@ -300,7 +315,7 @@ void LSTM::saveState(const std::string &filename)
 		writeData(m_bo, "bo", outfile);
 		outfile.close();
 	} else {
-		throw std::runtime_error("Unable to open " + filename);
+		throw std::runtime_error("Unable to open " + m_state_file);
 	}
 
 	return;

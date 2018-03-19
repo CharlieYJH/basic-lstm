@@ -51,6 +51,9 @@ class LSTM
 	// File containing training samples
 	std::ifstream m_infile;
 
+	// File where state is saved to
+	std::string m_state_file;
+
 	void reset(void);
 
 	void feedforward(Eigen::ArrayXd &input);
@@ -65,6 +68,8 @@ class LSTM
 			std::vector<Eigen::ArrayXd> &output_cache,
 			std::vector<Eigen::ArrayXd> &loss_cache
 	);
+
+	void saveState(void);
 
 	template<typename T>
 	void writeData(const T &data, const std::string &id, std::ofstream &outfile);
@@ -87,7 +92,7 @@ class LSTM
 
 	void train(const size_t epochs, const size_t num_steps);
 
-	void saveState(const std::string &filename);
+	void saveTo(const std::string &filename);
 
 	void loadState(const std::string &filename);
 
