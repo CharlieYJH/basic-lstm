@@ -1,31 +1,31 @@
 #include "lstm.h"
 
-LSTM::LSTM(size_t input_size, size_t output_size, float learning_rate)
+LSTM::LSTM(size_t input_size, size_t hidden_size, float learning_rate)
 {
 	m_input_size = input_size;
-	m_output_size = output_size;
+	m_hidden_size = hidden_size;
 
 	// Initialize input weight matrices
-	m_Wa = Eigen::MatrixXd::Random(output_size, input_size);
-	m_Wi = Eigen::MatrixXd::Random(output_size, input_size);
-	m_Wf = Eigen::MatrixXd::Random(output_size, input_size);
-	m_Wo = Eigen::MatrixXd::Random(output_size, input_size);
+	m_Wa = Eigen::MatrixXd::Random(hidden_size, input_size);
+	m_Wi = Eigen::MatrixXd::Random(hidden_size, input_size);
+	m_Wf = Eigen::MatrixXd::Random(hidden_size, input_size);
+	m_Wo = Eigen::MatrixXd::Random(hidden_size, input_size);
 
 	// Initialize recurrent weight matrices
-	m_Ra = Eigen::MatrixXd::Random(output_size, output_size);
-	m_Ri = Eigen::MatrixXd::Random(output_size, output_size);
-	m_Rf = Eigen::MatrixXd::Random(output_size, output_size);
-	m_Ro = Eigen::MatrixXd::Random(output_size, output_size);
+	m_Ra = Eigen::MatrixXd::Random(hidden_size, hidden_size);
+	m_Ri = Eigen::MatrixXd::Random(hidden_size, hidden_size);
+	m_Rf = Eigen::MatrixXd::Random(hidden_size, hidden_size);
+	m_Ro = Eigen::MatrixXd::Random(hidden_size, hidden_size);
 
 	// Initialize bias vectors
-	m_ba = Eigen::ArrayXd::Random(output_size);
-	m_bi = Eigen::ArrayXd::Random(output_size);
-	m_bf = Eigen::ArrayXd::Random(output_size);
-	m_bo = Eigen::ArrayXd::Random(output_size);
+	m_ba = Eigen::ArrayXd::Random(hidden_size);
+	m_bi = Eigen::ArrayXd::Random(hidden_size);
+	m_bf = Eigen::ArrayXd::Random(hidden_size);
+	m_bo = Eigen::ArrayXd::Random(hidden_size);
 
 	// Initialize output vector
-	m_state = Eigen::ArrayXd::Zero(output_size);
-	m_output = Eigen::ArrayXd::Zero(output_size);
+	m_state = Eigen::ArrayXd::Zero(hidden_size);
+	m_h_t = Eigen::ArrayXd::Zero(hidden_size);
 
 	// Set learning rate
 	m_rate = learning_rate;
@@ -47,32 +47,32 @@ void LSTM::load(const std::string &filename)
 void LSTM::reset(void)
 {
 	m_state.setZero();
-	m_output.setZero();
+	m_h_t.setZero();
 }
 
 void LSTM::feedforward(Eigen::ArrayXd &input)
 {
 	// Input activation
-	m_a_t = (m_Wa * input.matrix() + m_Ra * m_output.matrix()).array() + m_ba;
+	m_a_t = (m_Wa * input.matrix() + m_Ra * m_h_t.matrix()).array() + m_ba;
 	m_a_t = m_a_t.tanh();
 
 	// Input gate
-	m_i_t = (m_Wi * input.matrix() + m_Ri * m_output.matrix()).array() + m_bi;
+	m_i_t = (m_Wi * input.matrix() + m_Ri * m_h_t.matrix()).array() + m_bi;
 	m_i_t = m_i_t.unaryExpr(&LSTM::sigmoid);
 
 	// Forget gate
-	m_f_t = (m_Wf * input.matrix() + m_Rf * m_output.matrix()).array() + m_bf;
+	m_f_t = (m_Wf * input.matrix() + m_Rf * m_h_t.matrix()).array() + m_bf;
 	m_f_t = m_f_t.unaryExpr(&LSTM::sigmoid);
 
 	// Output gate
-	m_o_t = (m_Wo * input.matrix() + m_Ro * m_output.matrix()).array() + m_bo;
+	m_o_t = (m_Wo * input.matrix() + m_Ro * m_h_t.matrix()).array() + m_bo;
 	m_o_t = m_o_t.unaryExpr(&LSTM::sigmoid);
 	
 	// State update
 	m_state = m_a_t * m_i_t + m_f_t * m_state;
 
 	// Output
-	m_output = m_state.tanh() * m_o_t;
+	m_h_t = m_state.tanh() * m_o_t;
 
 	return;
 }
@@ -87,9 +87,9 @@ void LSTM::backpropogate(
 		std::vector<Eigen::ArrayXd> &output_cache,
 		std::vector<Eigen::ArrayXd> &loss_cache)
 {
-	Eigen::ArrayXd d_out_t = Eigen::ArrayXd::Zero(m_output_size);
-	Eigen::ArrayXd d_delta_t = Eigen::ArrayXd::Zero(m_output_size);
-	Eigen::ArrayXd d_state_t = Eigen::ArrayXd::Zero(m_output_size);
+	Eigen::ArrayXd d_out_t = Eigen::ArrayXd::Zero(m_hidden_size);
+	Eigen::ArrayXd d_delta_t = Eigen::ArrayXd::Zero(m_hidden_size);
+	Eigen::ArrayXd d_state_t = Eigen::ArrayXd::Zero(m_hidden_size);
 
 	// Input weight adjustment matrices
 	Eigen::MatrixXd d_Wa = Eigen::MatrixXd::Zero(m_Wa.rows(), m_Wa.cols());
@@ -130,7 +130,7 @@ void LSTM::backpropogate(
 		Eigen::ArrayXd d_f_t;
 
 		if (t == 0)
-			d_f_t = Eigen::ArrayXd::Zero(m_output_size);
+			d_f_t = Eigen::ArrayXd::Zero(m_hidden_size);
 		else
 			d_f_t = d_state_t * state_cache[t - 1] * f_t_cache[t] * (1 - f_t_cache[t]);
 
@@ -240,7 +240,7 @@ void LSTM::train(size_t epochs, size_t num_steps)
 				feedforward(input);
 
 				// Calculate difference between prediction and label and accumulate loss
-				Eigen::ArrayXd diff = m_output - label;
+				Eigen::ArrayXd diff = m_h_t - label;
 				loss += diff.square().sum();
 
 				// Pushback various network variables to use for backpropogation through time
@@ -251,7 +251,7 @@ void LSTM::train(size_t epochs, size_t num_steps)
 
 				state_cache.push_back(m_state);
 				input_cache.push_back(input);
-				output_cache.push_back(m_output);
+				output_cache.push_back(m_h_t);
 				loss_cache.push_back(diff);
 			}
 
@@ -283,8 +283,8 @@ void LSTM::output(const size_t iterations)
 
 	for (int i = 0; i < iterations; i++) {
 		feedforward(input);
-		input = m_output;
-		std::cout << vectorToChar(m_output);
+		input = m_h_t;
+		std::cout << vectorToChar(m_h_t);
 	}
 
 	return;

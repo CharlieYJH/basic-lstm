@@ -13,7 +13,7 @@ class LSTM
 	private:
 
 	size_t m_input_size;
-	size_t m_output_size;
+	size_t m_hidden_size;
 
 	// Input Weight Matrices
 	Eigen::MatrixXd m_Wa;
@@ -36,8 +36,8 @@ class LSTM
 	// Internal State Vector
 	Eigen::ArrayXd m_state;
 
-	// Output Vector
-	Eigen::ArrayXd m_output;
+	// Hidden Output Vector (LSTM Output)
+	Eigen::ArrayXd m_h_t;
 
 	// Activations
 	Eigen::ArrayXd m_a_t;
@@ -86,7 +86,7 @@ class LSTM
 
 	public:
 
-	LSTM(size_t input_size, size_t output_size, float learning_rate);
+	LSTM(size_t input_size, size_t hidden_size, float learning_rate);
 
 	void load(const std::string &filename);
 
