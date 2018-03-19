@@ -85,7 +85,7 @@ class LSTM
 
 	void load(const std::string &filename);
 
-	void train(const size_t epochs, const size_t batch_size);
+	void train(const size_t epochs, const size_t num_steps);
 
 	void saveState(const std::string &filename);
 

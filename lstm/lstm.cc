@@ -175,7 +175,7 @@ void LSTM::backpropogate(
 	return;
 }
 
-void LSTM::train(size_t epochs, size_t batch_size)
+void LSTM::train(size_t epochs, size_t num_steps)
 {
 	if (!m_infile)
 		throw std::runtime_error("No training samples currently open");
@@ -184,13 +184,14 @@ void LSTM::train(size_t epochs, size_t batch_size)
 
 	for (int i = 0; i < epochs; i++) {
 
-		reset();
-
 		char curr_char = ' ';
 		char next_char = ' ';
 
 		// Iterate through entire training sample
 		while (next_char != std::ifstream::traits_type::eof()) {
+
+			// Reset hidden state and output at the start of each batch
+			reset();
 
 			std::vector<Eigen::ArrayXd> a_t_cache;
 			std::vector<Eigen::ArrayXd> i_t_cache;
@@ -202,20 +203,20 @@ void LSTM::train(size_t epochs, size_t batch_size)
 			std::vector<Eigen::ArrayXd> output_cache;
 			std::vector<Eigen::ArrayXd> loss_cache;
 
-			a_t_cache.reserve(batch_size);
-			i_t_cache.reserve(batch_size);
-			f_t_cache.reserve(batch_size);
-			o_t_cache.reserve(batch_size);
+			a_t_cache.reserve(num_steps);
+			i_t_cache.reserve(num_steps);
+			f_t_cache.reserve(num_steps);
+			o_t_cache.reserve(num_steps);
 
-			state_cache.reserve(batch_size);
-			input_cache.reserve(batch_size);
-			output_cache.reserve(batch_size);
-			loss_cache.reserve(batch_size);
+			state_cache.reserve(num_steps);
+			input_cache.reserve(num_steps);
+			output_cache.reserve(num_steps);
+			loss_cache.reserve(num_steps);
 
 			double loss = 0;
 
 			// Iterate through each batch
-			for (int j = 0; j < batch_size; j++) {
+			for (int j = 0; j < num_steps; j++) {
 
 				// Get current character and the next one to use as input and label
 				m_infile.get(curr_char);
@@ -251,7 +252,7 @@ void LSTM::train(size_t epochs, size_t batch_size)
 			}
 
 			// Calculate average loss for this batch and backpropogate
-			loss /= batch_size;
+			loss /= num_steps;
 			backpropogate(a_t_cache, i_t_cache, f_t_cache, o_t_cache, state_cache, input_cache, output_cache, loss_cache);
 			
 			// Display the current iteration and loss
