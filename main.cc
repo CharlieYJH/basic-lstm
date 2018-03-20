@@ -3,12 +3,13 @@
 
 int main(int argc, char const* argv[])
 {
-	LSTM network(128, 128, 0.001);
+	std::srand(std::time(0));
+	LSTM network(128, 128, 128, 0.01);
 	network.load("./samples/shakespear.txt");
 	network.loadState("./data/weights.txt");
-	network.saveTo("./data/weights.txt");
-	network.train(1, 100);
-	network.output(10000);
+	// network.saveTo("./data/weights.txt");
+	// network.train(5, 300);
+	network.output(300);
 	std::cout << std::endl;
 	return 0;
 }

@@ -6,6 +6,8 @@
 #include <fstream>
 #include <sstream>
 #include <cmath>
+#include <cstdlib>
+#include <ctime>
 #include <vector>
 
 class LSTM
@@ -14,6 +16,7 @@ class LSTM
 
 	size_t m_input_size;
 	size_t m_hidden_size;
+	size_t m_output_size;
 
 	// Input Weight Matrices
 	Eigen::MatrixXd m_Wa;
@@ -45,6 +48,16 @@ class LSTM
 	Eigen::ArrayXd m_f_t;
 	Eigen::ArrayXd m_o_t;
 
+	// Fully Connected Layer Layer Weight and Bias
+	Eigen::MatrixXd m_Wy;
+	Eigen::ArrayXd m_by;
+
+	// Fully Connected Layer Output
+	Eigen::ArrayXd m_y_t;
+	
+	// Softmax Probabilities Vector
+	Eigen::ArrayXd m_output;
+
 	// Learning rate
 	float m_rate;
 
@@ -63,10 +76,11 @@ class LSTM
 			std::vector<Eigen::ArrayXd> &i_t_cache,
 			std::vector<Eigen::ArrayXd> &f_t_cache,
 			std::vector<Eigen::ArrayXd> &o_t_cache,
+			std::vector<Eigen::ArrayXd> &h_t_cache,
 			std::vector<Eigen::ArrayXd> &state_cache,
 			std::vector<Eigen::ArrayXd> &input_cache,
-			std::vector<Eigen::ArrayXd> &output_cache,
-			std::vector<Eigen::ArrayXd> &loss_cache
+			std::vector<Eigen::ArrayXd> &prob_cache,
+			std::vector<char> &label_cache
 	);
 
 	void saveState(void);
@@ -80,13 +94,17 @@ class LSTM
 	// Helper functions
 	static double sigmoid(double num);
 
+	Eigen::ArrayXd softmax(const Eigen::ArrayXd &input);
+
+	double crossEntropy(const Eigen::ArrayXd &output, const char &label);
+
 	Eigen::ArrayXd charToVector(const char &c);
 
 	char vectorToChar(const Eigen::ArrayXd &v);
 
 	public:
 
-	LSTM(size_t input_size, size_t hidden_size, float learning_rate);
+	LSTM(size_t input_size, size_t hidden_size, size_t output_size, float learning_rate);
 
 	void load(const std::string &filename);
 
