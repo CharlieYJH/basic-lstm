@@ -227,14 +227,16 @@ void LSTM::train(size_t epochs, size_t num_steps)
 
 	for (int i = 0; i < epochs; i++) {
 
+		// Reset hidden state and output at the start of each epoch
+		reset();
+
 		char curr_char = ' ';
 		char next_char = ' ';
+		double loss = 0;
+		double last_loss = 0;
 
 		// Iterate through entire training sample
 		while (next_char != std::ifstream::traits_type::eof()) {
-
-			// Reset hidden state and output at the start of each batch
-			reset();
 
 			std::vector<Eigen::ArrayXd> a_t_cache;
 			std::vector<Eigen::ArrayXd> i_t_cache;
@@ -258,7 +260,8 @@ void LSTM::train(size_t epochs, size_t num_steps)
 			prob_cache.reserve(num_steps);
 			label_cache.reserve(num_steps);
 
-			double loss = 0;
+			last_loss = loss;
+			loss = 0;
 
 			// Iterate through each batch
 			for (int j = 0; j < num_steps; j++) {
@@ -301,7 +304,7 @@ void LSTM::train(size_t epochs, size_t num_steps)
 			backpropogate(a_t_cache, i_t_cache, f_t_cache, o_t_cache, h_t_cache, state_cache, input_cache, prob_cache, label_cache);
 			
 			// Display the current iteration and loss
-			if (iteration % 500 == 0) {
+			if (iteration % 100 == 0) {
 				std::cout << "Iter: " << iteration << " " << "Loss: " << loss << std::endl;
 			}
 
@@ -309,7 +312,7 @@ void LSTM::train(size_t epochs, size_t num_steps)
 		}
 
 		std::cout << "-------------------------------------------------------------------------" << std::endl;
-		std::cout << "Epoch " << i + 1 << "/" << epochs << ". State saved to " << m_state_file << std::endl;
+		std::cout << "Epoch " << i + 1 << "/" << epochs << ". State saved to " << m_state_file << ". Loss: " << last_loss << std::endl;
 		std::cout << "-------------------------------------------------------------------------" << std::endl;
 		saveState();
 	}
@@ -329,6 +332,7 @@ void LSTM::output(const size_t iterations)
 		std::cout << output;
 	}
 
+	std::cout << std::endl;
 	return;
 }
 
@@ -356,6 +360,7 @@ void LSTM::saveState(void)
 		writeData(m_bf, "bf", outfile);
 		writeData(m_bo, "bo", outfile);
 		writeData(m_Wy, "Wy", outfile);
+		writeData(m_by, "by", outfile);
 		outfile.close();
 	} else {
 		throw std::runtime_error("Unable to open " + m_state_file);
@@ -467,7 +472,7 @@ Eigen::ArrayXd LSTM::charToVector(const char &c)
 
 char LSTM::vectorToChar(const Eigen::ArrayXd &v)
 {
-	int max_index;
+	int max_index = 0;
 	double max_num = v(0);
 
 	for (int i = 1; i < v.size(); i++) {

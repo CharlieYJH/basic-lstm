@@ -4,12 +4,11 @@
 int main(int argc, char const* argv[])
 {
 	std::srand(std::time(0));
-	LSTM network(128, 128, 128, 0.01);
+	LSTM network(128, 128, 128, 0.001);
 	network.load("./samples/shakespear.txt");
 	network.loadState("./data/weights.txt");
 	// network.saveTo("./data/weights.txt");
-	// network.train(5, 300);
-	network.output(300);
-	std::cout << std::endl;
+	// network.train(5, 100);
+	network.output(1000);
 	return 0;
 }
