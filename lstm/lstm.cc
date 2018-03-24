@@ -36,7 +36,7 @@ LSTM::LSTM(size_t input_size, size_t hidden_size, size_t output_size, float lear
 	m_y_t = Eigen::ArrayXd::Zero(output_size);
 	m_output = Eigen::ArrayXd::Zero(output_size);
 
-	// Set learning rate
+	// Set learning rate and decay rate
 	m_rate = learning_rate;
 
 	// Setting default file where weights and biases are saved
@@ -105,7 +105,8 @@ void LSTM::backpropogate(
 		std::vector<Eigen::ArrayXd> &state_cache,
 		std::vector<Eigen::ArrayXd> &input_cache,
 		std::vector<Eigen::ArrayXd> &prob_cache,
-		std::vector<char> &label_cache
+		std::vector<char> &label_cache,
+		const int lookback
 ) {
 	// LSTM output, output delta, and state differentials
 	Eigen::ArrayXd d_h_t = Eigen::ArrayXd::Zero(m_hidden_size);
@@ -137,7 +138,10 @@ void LSTM::backpropogate(
 	Eigen::MatrixXd d_Wy = Eigen::MatrixXd::Zero(m_Wy.rows(), m_Wy.cols());
 	Eigen::ArrayXd d_by = Eigen::ArrayXd::Zero(m_by.size());
 
-	for (int t = input_cache.size() - 1; t >= 0; t--) {
+	int timesteps = input_cache.size();
+	int window = (timesteps - lookback >= 0) ? timesteps - lookback : 0;
+
+	for (int t = timesteps - 1; t >= window; t--) {
 
 		// Softmax gradient
 		d_y_t = prob_cache[t];
@@ -218,7 +222,7 @@ void LSTM::backpropogate(
 	return;
 }
 
-void LSTM::train(size_t epochs, size_t num_steps)
+void LSTM::train(const size_t epochs, const size_t num_steps, const size_t lookback)
 {
 	if (!m_infile)
 		throw std::runtime_error("No training samples currently open");
@@ -227,9 +231,6 @@ void LSTM::train(size_t epochs, size_t num_steps)
 
 	for (int i = 0; i < epochs; i++) {
 
-		// Reset hidden state and output at the start of each epoch
-		reset();
-
 		char curr_char = ' ';
 		char next_char = ' ';
 		double loss = 0;
@@ -237,6 +238,9 @@ void LSTM::train(size_t epochs, size_t num_steps)
 
 		// Iterate through entire training sample
 		while (next_char != std::ifstream::traits_type::eof()) {
+
+			// Reset hidden state and output at the start of each batch
+			reset();
 
 			std::vector<Eigen::ArrayXd> a_t_cache;
 			std::vector<Eigen::ArrayXd> i_t_cache;
@@ -301,20 +305,20 @@ void LSTM::train(size_t epochs, size_t num_steps)
 
 			// Calculate average loss for this batch and backpropogate
 			loss /= num_steps;
-			backpropogate(a_t_cache, i_t_cache, f_t_cache, o_t_cache, h_t_cache, state_cache, input_cache, prob_cache, label_cache);
+			backpropogate(a_t_cache, i_t_cache, f_t_cache, o_t_cache, h_t_cache, state_cache, input_cache, prob_cache, label_cache, lookback);
 			
 			// Display the current iteration and loss
-			if (iteration % 100 == 0) {
-				std::cout << "Iter: " << iteration << " " << "Loss: " << loss << std::endl;
-			}
+			// if (iteration % 100 == 0) {
+				// std::cout << "Iter: " << iteration << " " << "Loss: " << loss << std::endl;
+			// }
 
 			iteration++;
 		}
 
+		saveState();
 		std::cout << "-------------------------------------------------------------------------" << std::endl;
 		std::cout << "Epoch " << i + 1 << "/" << epochs << ". State saved to " << m_state_file << ". Loss: " << last_loss << std::endl;
 		std::cout << "-------------------------------------------------------------------------" << std::endl;
-		saveState();
 	}
 
 	return;
@@ -322,17 +326,24 @@ void LSTM::train(size_t epochs, size_t num_steps)
 
 void LSTM::output(const size_t iterations)
 {
-	reset();
-	Eigen::ArrayXd input = charToVector('a' + std::rand() % 26);
+	std::string seed = "ruled by successive feudal military shoguns who";
+	std::string output = seed;
 
 	for (int i = 0; i < iterations; i++) {
-		feedforward(input);
-		char output = vectorToChar(m_output);
-		input = charToVector(output);
-		std::cout << output;
+
+		reset();
+
+		for (char c : seed) {
+			Eigen::ArrayXd inchar = charToVector(c);
+			feedforward(inchar);
+		}
+
+		char outchar = vectorToChar(m_output);
+		output += outchar;
+		seed = seed.substr(1, seed.length() - 1) + outchar;
 	}
 
-	std::cout << std::endl;
+	std::cout << output << std::endl;
 	return;
 }
 

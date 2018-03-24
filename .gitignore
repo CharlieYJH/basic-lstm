@@ -5,3 +5,4 @@ CMakeFiles/
 *.swp
 data/
 *.stackdump
+samples/

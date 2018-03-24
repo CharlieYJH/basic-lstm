@@ -80,7 +80,8 @@ class LSTM
 			std::vector<Eigen::ArrayXd> &state_cache,
 			std::vector<Eigen::ArrayXd> &input_cache,
 			std::vector<Eigen::ArrayXd> &prob_cache,
-			std::vector<char> &label_cache
+			std::vector<char> &label_cache,
+			const int lookback
 	);
 
 	void saveState(void);
@@ -108,7 +109,7 @@ class LSTM
 
 	void load(const std::string &filename);
 
-	void train(const size_t epochs, const size_t num_steps);
+	void train(const size_t epochs, const size_t num_steps, const size_t lookback);
 
 	void saveTo(const std::string &filename);
 
