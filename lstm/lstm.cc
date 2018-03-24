@@ -1,46 +1,10 @@
 #include "lstm.h"
 
-LSTM::LSTM(size_t input_size, size_t hidden_size, size_t output_size, float learning_rate)
+LSTM::LSTM(size_t hidden_size, float learning_rate)
+	: m_hidden_size(hidden_size),
+	  m_rate(learning_rate),
+	  m_state_file("./weights.txt")
 {
-	m_input_size = input_size;
-	m_hidden_size = hidden_size;
-	m_output_size = output_size;
-
-	// Initialize input weight matrices
-	m_Wa = Eigen::MatrixXd::Random(hidden_size, input_size);
-	m_Wi = Eigen::MatrixXd::Random(hidden_size, input_size);
-	m_Wf = Eigen::MatrixXd::Random(hidden_size, input_size);
-	m_Wo = Eigen::MatrixXd::Random(hidden_size, input_size);
-
-	// Initialize recurrent weight matrices
-	m_Ra = Eigen::MatrixXd::Random(hidden_size, hidden_size);
-	m_Ri = Eigen::MatrixXd::Random(hidden_size, hidden_size);
-	m_Rf = Eigen::MatrixXd::Random(hidden_size, hidden_size);
-	m_Ro = Eigen::MatrixXd::Random(hidden_size, hidden_size);
-
-	// Initialize bias vectors
-	m_ba = Eigen::ArrayXd::Random(hidden_size);
-	m_bi = Eigen::ArrayXd::Random(hidden_size);
-	m_bf = Eigen::ArrayXd::Random(hidden_size);
-	m_bo = Eigen::ArrayXd::Random(hidden_size);
-
-	// Initialize output vector
-	m_state = Eigen::ArrayXd::Zero(hidden_size);
-	m_h_t = Eigen::ArrayXd::Zero(hidden_size);
-
-	// Initialize fully connected layer weights and biases
-	m_Wy = Eigen::MatrixXd::Random(output_size, hidden_size);
-	m_by = Eigen::ArrayXd::Random(output_size);
-
-	// Initialize fully connected layer output and softmax probabilities vector
-	m_y_t = Eigen::ArrayXd::Zero(output_size);
-	m_output = Eigen::ArrayXd::Zero(output_size);
-
-	// Set learning rate and decay rate
-	m_rate = learning_rate;
-
-	// Setting default file where weights and biases are saved
-	m_state_file = "./weights.txt";
 }
 
 void LSTM::load(const std::string &filename)
@@ -49,6 +13,12 @@ void LSTM::load(const std::string &filename)
 
 	if (!m_infile)
 		throw std::runtime_error(filename + " not found");
+
+	// Go through the file and fill the vocab list
+	fillVocabList(m_vocabs, m_vocabs_indices, m_infile);
+
+	// Initiate all weights and biases according to the sizes given
+	initiateMatrices();
 
 	return;
 }
@@ -145,7 +115,7 @@ void LSTM::backpropogate(
 
 		// Softmax gradient
 		d_y_t = prob_cache[t];
-		d_y_t((int)label_cache[t]) -= 1;
+		d_y_t(m_vocabs[label_cache[t]]) -= 1;
 
 		// Accumulate fully connected layer weight and bias adjustments
 		d_Wy += d_y_t.matrix() * h_t_cache[t].matrix().transpose();
@@ -235,12 +205,16 @@ void LSTM::train(const size_t epochs, const size_t num_steps, const size_t lookb
 		char next_char = ' ';
 		double loss = 0;
 		double last_loss = 0;
+		std::streampos start_pos = m_infile.tellg();
 
 		// Iterate through entire training sample
 		while (next_char != std::ifstream::traits_type::eof()) {
 
 			// Reset hidden state and output at the start of each batch
 			reset();
+
+			m_infile.seekg(start_pos);
+			start_pos += 1;
 
 			std::vector<Eigen::ArrayXd> a_t_cache;
 			std::vector<Eigen::ArrayXd> i_t_cache;
@@ -282,7 +256,6 @@ void LSTM::train(const size_t epochs, const size_t num_steps, const size_t lookb
 				}
 
 				Eigen::ArrayXd input = charToVector(curr_char);
-				// Eigen::ArrayXd label = charToVector(next_char);
 
 				// Forward pass of the network
 				feedforward(input);
@@ -308,14 +281,14 @@ void LSTM::train(const size_t epochs, const size_t num_steps, const size_t lookb
 			backpropogate(a_t_cache, i_t_cache, f_t_cache, o_t_cache, h_t_cache, state_cache, input_cache, prob_cache, label_cache, lookback);
 			
 			// Display the current iteration and loss
-			// if (iteration % 100 == 0) {
-				// std::cout << "Iter: " << iteration << " " << "Loss: " << loss << std::endl;
-			// }
+			if (iteration % 1000 == 0) {
+				std::cout << "Iter: " << iteration << " " << "Loss: " << loss << std::endl;
+			}
 
 			iteration++;
 		}
 
-		saveState();
+		// saveState();
 		std::cout << "-------------------------------------------------------------------------" << std::endl;
 		std::cout << "Epoch " << i + 1 << "/" << epochs << ". State saved to " << m_state_file << ". Loss: " << last_loss << std::endl;
 		std::cout << "-------------------------------------------------------------------------" << std::endl;
@@ -326,7 +299,7 @@ void LSTM::train(const size_t epochs, const size_t num_steps, const size_t lookb
 
 void LSTM::output(const size_t iterations)
 {
-	std::string seed = "ruled by successive feudal military shoguns who";
+	std::string seed = "Japan is a sovereign island nation in East Asia";
 	std::string output = seed;
 
 	for (int i = 0; i < iterations; i++) {
@@ -465,7 +438,7 @@ Eigen::ArrayXd LSTM::softmax(const Eigen::ArrayXd &input)
 
 double LSTM::crossEntropy(const Eigen::ArrayXd &output, const char &label)
 {
-	return -std::log(output(label));
+	return -std::log(output(m_vocabs[label]));
 }
 
 double LSTM::sigmoid(double num)
@@ -476,7 +449,7 @@ double LSTM::sigmoid(double num)
 Eigen::ArrayXd LSTM::charToVector(const char &c)
 {
 	Eigen::ArrayXd one_hot_vector = Eigen::ArrayXd::Zero(m_input_size);
-	one_hot_vector((int)c) = 1;
+	one_hot_vector(m_vocabs[c]) = 1;
 
 	return one_hot_vector;
 }
@@ -493,5 +466,60 @@ char LSTM::vectorToChar(const Eigen::ArrayXd &v)
 		}
 	}
 
-	return (char)max_index;
+	return m_vocabs_indices[max_index];
+}
+
+void LSTM::fillVocabList(std::unordered_map<char, int> &vocabs, std::unordered_map<int, char> &indices, std::ifstream &infile)
+{
+	int counter = 0;
+	char c = ' ';
+
+	// Fill vocab list and append an index number to it
+	while (infile.get(c)) {
+		if (vocabs.find(c) == vocabs.end()) {
+			vocabs[c] = counter;
+			indices[counter++] = c;
+		}
+	}
+
+	// Initiate the input and output vector sizes
+	m_input_size = vocabs.size();
+	m_output_size = vocabs.size();
+
+	// Reset file stream pointer location
+	infile.clear();
+	infile.seekg(0);
+}
+
+void LSTM::initiateMatrices(void)
+{
+	// Initialize input weight matrices
+	m_Wa = Eigen::MatrixXd::Random(m_hidden_size, m_input_size);
+	m_Wi = Eigen::MatrixXd::Random(m_hidden_size, m_input_size);
+	m_Wf = Eigen::MatrixXd::Random(m_hidden_size, m_input_size);
+	m_Wo = Eigen::MatrixXd::Random(m_hidden_size, m_input_size);
+
+	// Initialize recurrent weight matrices
+	m_Ra = Eigen::MatrixXd::Random(m_hidden_size, m_hidden_size);
+	m_Ri = Eigen::MatrixXd::Random(m_hidden_size, m_hidden_size);
+	m_Rf = Eigen::MatrixXd::Random(m_hidden_size, m_hidden_size);
+	m_Ro = Eigen::MatrixXd::Random(m_hidden_size, m_hidden_size);
+
+	// Initialize bias vectors
+	m_ba = Eigen::ArrayXd::Random(m_hidden_size);
+	m_bi = Eigen::ArrayXd::Random(m_hidden_size);
+	m_bf = Eigen::ArrayXd::Random(m_hidden_size);
+	m_bo = Eigen::ArrayXd::Random(m_hidden_size);
+
+	// Initialize output vector
+	m_state = Eigen::ArrayXd::Zero(m_hidden_size);
+	m_h_t = Eigen::ArrayXd::Zero(m_hidden_size);
+
+	// Initialize fully connected layer weights and biases
+	m_Wy = Eigen::MatrixXd::Random(m_output_size, m_hidden_size);
+	m_by = Eigen::ArrayXd::Random(m_output_size);
+
+	// Initialize fully connected layer output and softmax probabilities vector
+	m_y_t = Eigen::ArrayXd::Zero(m_output_size);
+	m_output = Eigen::ArrayXd::Zero(m_output_size);
 }

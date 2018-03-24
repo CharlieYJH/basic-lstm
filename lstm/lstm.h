@@ -9,6 +9,7 @@
 #include <cstdlib>
 #include <ctime>
 #include <vector>
+#include <unordered_map>
 
 class LSTM
 {
@@ -64,6 +65,10 @@ class LSTM
 	// File containing training samples
 	std::ifstream m_infile;
 
+	// Vocab list containing all possible characters
+	std::unordered_map<char, int> m_vocabs;
+	std::unordered_map<int, char> m_vocabs_indices;
+
 	// File where state is saved to
 	std::string m_state_file;
 
@@ -103,9 +108,13 @@ class LSTM
 
 	char vectorToChar(const Eigen::ArrayXd &v);
 
+	void fillVocabList(std::unordered_map<char, int> &vocabs, std::unordered_map<int, char> &indices, std::ifstream &infile);
+
+	void initiateMatrices(void);
+
 	public:
 
-	LSTM(size_t input_size, size_t hidden_size, size_t output_size, float learning_rate);
+	LSTM(size_t hidden_size, float learning_rate);
 
 	void load(const std::string &filename);
 
