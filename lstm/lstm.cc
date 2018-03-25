@@ -10,6 +10,7 @@ LSTM::LSTM(size_t hidden_size, float learning_rate)
 void LSTM::load(const std::string &filename)
 {
 	m_infile.open(filename, std::ifstream::in);
+	m_sample_file = filename;
 
 	if (!m_infile)
 		throw std::runtime_error(filename + " not found");
@@ -20,7 +21,7 @@ void LSTM::load(const std::string &filename)
 	// Initiate all weights and biases according to the sizes given
 	initiateMatrices();
 
-	return;
+	m_infile.close();
 }
 
 void LSTM::reset(void)
@@ -29,8 +30,6 @@ void LSTM::reset(void)
 	m_h_t.setZero();
 	m_y_t.setZero();
 	m_output.setZero();
-
-	return;
 }
 
 void LSTM::feedforward(Eigen::ArrayXd &input)
@@ -62,8 +61,6 @@ void LSTM::feedforward(Eigen::ArrayXd &input)
 
 	// Apply softmax classifier on fully connected layer output to get a vector of probabilities
 	m_output = softmax(m_y_t);
-
-	return;
 }
 
 void LSTM::backpropogate(
@@ -170,6 +167,21 @@ void LSTM::backpropogate(
 		d_bo += d_o_t;
 	}
 
+	clipGradients(d_Wa);
+	clipGradients(d_Wi);
+	clipGradients(d_Wf);
+	clipGradients(d_Wo);
+	clipGradients(d_Ra);
+	clipGradients(d_Ri);
+	clipGradients(d_Rf);
+	clipGradients(d_Ro);
+	clipGradients(d_ba);
+	clipGradients(d_bi);
+	clipGradients(d_bf);
+	clipGradients(d_bo);
+	clipGradients(d_Wy);
+	clipGradients(d_by);
+
 	// Update weights and biases
 	m_Wa -= (m_rate * d_Wa.array()).matrix();
 	m_Wi -= (m_rate * d_Wi.array()).matrix();
@@ -188,12 +200,12 @@ void LSTM::backpropogate(
 
 	m_Wy -= (m_rate * d_Wy.array()).matrix();
 	m_by -= m_rate * d_by;
-
-	return;
 }
 
 void LSTM::train(const size_t epochs, const size_t num_steps, const size_t lookback)
 {
+	m_infile.open(m_sample_file, std::ifstream::in);
+
 	if (!m_infile)
 		throw std::runtime_error("No training samples currently open");
 
@@ -288,18 +300,18 @@ void LSTM::train(const size_t epochs, const size_t num_steps, const size_t lookb
 			iteration++;
 		}
 
-		// saveState();
+		saveState();
 		std::cout << "-------------------------------------------------------------------------" << std::endl;
 		std::cout << "Epoch " << i + 1 << "/" << epochs << ". State saved to " << m_state_file << ". Loss: " << last_loss << std::endl;
 		std::cout << "-------------------------------------------------------------------------" << std::endl;
 	}
 
-	return;
+	m_infile.close();
 }
 
 void LSTM::output(const size_t iterations)
 {
-	std::string seed = "Japan is a sovereign island nation in East Asia";
+	std::string seed = "Japan is a sovereign island nation in East Asia ";
 	std::string output = seed;
 
 	for (int i = 0; i < iterations; i++) {
@@ -317,13 +329,11 @@ void LSTM::output(const size_t iterations)
 	}
 
 	std::cout << output << std::endl;
-	return;
 }
 
 void LSTM::saveTo(const std::string &filename)
 {
 	m_state_file = filename;
-	return;
 }
 
 void LSTM::saveState(void)
@@ -349,8 +359,6 @@ void LSTM::saveState(void)
 	} else {
 		throw std::runtime_error("Unable to open " + m_state_file);
 	}
-
-	return;
 }
 
 template<typename T>
@@ -365,7 +373,6 @@ void LSTM::writeData(const T &data, const std::string &id, std::ofstream &outfil
 	}
 
 	outfile << "\r\n";
-	return;
 }
 
 void LSTM::loadState(const std::string &filename)
@@ -424,8 +431,20 @@ void LSTM::loadData(T &parameter, std::istringstream &data_stream)
 			data_stream >> parameter(i, j);
 		}
 	}
+}
 
-	return;
+template<typename T>
+void LSTM::clipGradients(T &parameter)
+{
+	const int threshold = 10;
+	for (int i = 0; i < parameter.rows(); i++) {
+		for (int j = 0; j < parameter.cols(); j++) {
+			if (parameter(i, j) > threshold)
+				parameter(i, j) = threshold;
+			else if (parameter(i, j) < -threshold)
+				parameter(i, j) = -threshold;
+		}
+	}
 }
 
 Eigen::ArrayXd LSTM::softmax(const Eigen::ArrayXd &input)

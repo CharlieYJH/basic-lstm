@@ -71,6 +71,7 @@ class LSTM
 
 	// File where state is saved to
 	std::string m_state_file;
+	std::string m_sample_file;
 
 	void reset(void);
 
@@ -96,6 +97,9 @@ class LSTM
 
 	template<typename T>
 	void loadData(T &parameter, std::istringstream &data_stream);
+
+	template<typename T>
+	void clipGradients(T &parameter);
 
 	// Helper functions
 	static double sigmoid(double num);

@@ -9,8 +9,8 @@ int main(int argc, char const* argv[])
 	LSTM network(128, 0.01);
 	network.load("./samples/japan.txt");
 	network.loadState("./data/weights.txt");
-	network.saveTo("./data/weights.txt");
-	network.train(300, 100, 100);
+	// network.saveTo("./data/weights.txt");
+	// network.train(300, 100, 100);
 	network.output(1000);
 	return 0;
 }
