@@ -6,11 +6,11 @@
 int main(int argc, char const* argv[])
 {
 	std::srand(std::time(0));
-	LSTM network(128, 0.01);
-	network.load("./samples/japan.txt");
+	LSTM network(256, 0.01);
+	network.load("./samples/shakespear.txt");
 	network.loadState("./data/weights.txt");
-	// network.saveTo("./data/weights.txt");
-	// network.train(300, 100, 100);
+	network.saveTo("./data/weights.txt");
+	network.train(300, 150, 150);
 	network.output(1000);
 	return 0;
 }

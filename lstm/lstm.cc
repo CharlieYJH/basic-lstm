@@ -225,8 +225,8 @@ void LSTM::train(const size_t epochs, const size_t num_steps, const size_t lookb
 			// Reset hidden state and output at the start of each batch
 			reset();
 
-			m_infile.seekg(start_pos);
-			start_pos += 1;
+			// m_infile.seekg(start_pos);
+			// start_pos += 1;
 
 			std::vector<Eigen::ArrayXd> a_t_cache;
 			std::vector<Eigen::ArrayXd> i_t_cache;
@@ -293,12 +293,16 @@ void LSTM::train(const size_t epochs, const size_t num_steps, const size_t lookb
 			backpropogate(a_t_cache, i_t_cache, f_t_cache, o_t_cache, h_t_cache, state_cache, input_cache, prob_cache, label_cache, lookback);
 			
 			// Display the current iteration and loss
-			if (iteration % 1000 == 0) {
-				std::cout << "Iter: " << iteration << " " << "Loss: " << loss << std::endl;
-			}
+			// if (iteration % 1000 == 0) {
+				// std::cout << "Iter: " << iteration << " " << "Loss: " << loss << std::endl;
+			// }
 
 			iteration++;
 		}
+
+		// Temporary placeholder for simulating learning rate decay
+		if (i + 1 % 10 == 0)
+			m_rate *= 0.5;
 
 		saveState();
 		std::cout << "-------------------------------------------------------------------------" << std::endl;
@@ -311,7 +315,7 @@ void LSTM::train(const size_t epochs, const size_t num_steps, const size_t lookb
 
 void LSTM::output(const size_t iterations)
 {
-	std::string seed = "Japan is a sovereign island nation in East Asia ";
+	std::string seed = "The instant common maid, as we may less be";
 	std::string output = seed;
 
 	for (int i = 0; i < iterations; i++) {
@@ -436,13 +440,14 @@ void LSTM::loadData(T &parameter, std::istringstream &data_stream)
 template<typename T>
 void LSTM::clipGradients(T &parameter)
 {
-	const int threshold = 10;
-	for (int i = 0; i < parameter.rows(); i++) {
-		for (int j = 0; j < parameter.cols(); j++) {
-			if (parameter(i, j) > threshold)
-				parameter(i, j) = threshold;
-			else if (parameter(i, j) < -threshold)
-				parameter(i, j) = -threshold;
+	const double threshold = 7.0;
+	double param_norm = parameter.matrix().norm();
+
+	if (param_norm > threshold) {
+		for (int i = 0; i < parameter.rows(); i++) {
+			for (int j = 0; j < parameter.cols(); j++) {
+				parameter(i, j) *= (threshold / param_norm);
+			}
 		}
 	}
 }
