@@ -10,7 +10,7 @@ int main(int argc, char const* argv[])
 	network.load("./samples/shakespear.txt");
 	network.loadState("./data/weights.txt");
 	network.saveTo("./data/weights.txt");
-	network.train(300, 150, 150);
+	network.train(300, 100, 100, 25);
 	network.output(1000);
 	return 0;
 }

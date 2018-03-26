@@ -202,7 +202,7 @@ void LSTM::backpropogate(
 	m_by -= m_rate * d_by;
 }
 
-void LSTM::train(const size_t epochs, const size_t num_steps, const size_t lookback)
+void LSTM::train(const size_t epochs, const size_t num_steps, const size_t lookback, const int reset_num)
 {
 	m_infile.open(m_sample_file, std::ifstream::in);
 
@@ -213,17 +213,18 @@ void LSTM::train(const size_t epochs, const size_t num_steps, const size_t lookb
 
 	for (int i = 0; i < epochs; i++) {
 
+		// Reset hidden state and output at the start of each epoch
+		reset();
+
 		char curr_char = ' ';
 		char next_char = ' ';
 		double loss = 0;
 		double last_loss = 0;
+		int batch_num = 0;
 		std::streampos start_pos = m_infile.tellg();
 
 		// Iterate through entire training sample
 		while (next_char != std::ifstream::traits_type::eof()) {
-
-			// Reset hidden state and output at the start of each batch
-			reset();
 
 			// m_infile.seekg(start_pos);
 			// start_pos += 1;
@@ -298,11 +299,17 @@ void LSTM::train(const size_t epochs, const size_t num_steps, const size_t lookb
 			// }
 
 			iteration++;
+			batch_num++;
+
+			// Reset the internal states after reset_num numbers of mini batches are done
+			// Doesn't reset between batches if reset_num is 0 or less
+			if (reset_num > 0 && batch_num % reset_num == 0)
+				reset();
 		}
 
 		// Temporary placeholder for simulating learning rate decay
 		if (i + 1 % 10 == 0)
-			m_rate *= 0.5;
+			m_rate *= 0.1;
 
 		saveState();
 		std::cout << "-------------------------------------------------------------------------" << std::endl;
@@ -315,7 +322,7 @@ void LSTM::train(const size_t epochs, const size_t num_steps, const size_t lookb
 
 void LSTM::output(const size_t iterations)
 {
-	std::string seed = "The instant common maid, as we may less be";
+	std::string seed = "That, poor contempt, or claim'd thou slept so faithful, \nI may contrive our father;";
 	std::string output = seed;
 
 	for (int i = 0; i < iterations; i++) {
