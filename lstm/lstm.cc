@@ -397,7 +397,9 @@ void LSTM::beamSearchOutput(const size_t beams, const size_t iterations)
 
 		// Sort all candidates by the output probabilities
 		std::sort(all_candidates.begin(), all_candidates.end(), 
-				[] (const Candidate &a, const Candidate &b) { return a.probability < b.probability; });
+				[] (const Candidate &a, const Candidate &b) {
+					return a.probability < b.probability;
+		});
 
 		// Update the top candidates with the info from the sorted list of all candidates
 		for (int j = 0; j < top_candidates.size(); j++) {
@@ -417,7 +419,7 @@ void LSTM::beamSearchOutput(const size_t beams, const size_t iterations)
 	std::cout << top_candidates[0].sequence << std::endl;
 }
 
-void LSTM::saveTo(const std::string &filename)
+void LSTM::saveStateTo(const std::string &filename)
 {
 	m_state_file = filename;
 }

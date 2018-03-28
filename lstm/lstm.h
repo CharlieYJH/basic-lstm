@@ -135,7 +135,7 @@ class LSTM
 
 	void train(const size_t epochs, const size_t num_steps, const size_t lookback, const int reset_num);
 
-	void saveTo(const std::string &filename);
+	void saveStateTo(const std::string &filename);
 
 	void loadState(const std::string &filename);
 
