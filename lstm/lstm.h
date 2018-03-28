@@ -15,6 +15,14 @@ class LSTM
 {
 	private:
 
+	struct Candidate {
+		int candidate_num;
+		std::string sequence;
+		double probability;
+		Eigen::ArrayXd state;
+		Eigen::ArrayXd hidden;
+	};
+
 	size_t m_input_size;
 	size_t m_hidden_size;
 	size_t m_output_size;
@@ -129,6 +137,8 @@ class LSTM
 	void loadState(const std::string &filename);
 
 	void output(const size_t iterations);
+
+	void beamSearchOutput(const size_t beams, const size_t iterations);
 };
 
 #endif

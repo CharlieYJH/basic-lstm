@@ -309,7 +309,7 @@ void LSTM::train(const size_t epochs, const size_t num_steps, const size_t lookb
 
 		// Temporary placeholder for simulating learning rate decay
 		if (i + 1 % 10 == 0)
-			m_rate *= 0.1;
+			m_rate *= 0.5;
 
 		saveState();
 		std::cout << "-------------------------------------------------------------------------" << std::endl;
@@ -322,24 +322,92 @@ void LSTM::train(const size_t epochs, const size_t num_steps, const size_t lookb
 
 void LSTM::output(const size_t iterations)
 {
-	std::string seed = "That, poor contempt, or claim'd thou slept so faithful, \nI may contrive our father;";
-	std::string output = seed;
+	std::string output = "";
+
+	Eigen::ArrayXd input = charToVector(m_vocabs_indices[std::rand() % m_input_size]);
 
 	for (int i = 0; i < iterations; i++) {
-
-		reset();
-
-		for (char c : seed) {
-			Eigen::ArrayXd inchar = charToVector(c);
-			feedforward(inchar);
-		}
-
+		feedforward(input);
 		char outchar = vectorToChar(m_output);
+		input = charToVector(outchar);
 		output += outchar;
-		seed = seed.substr(1, seed.length() - 1) + outchar;
 	}
 
 	std::cout << output << std::endl;
+}
+
+void LSTM::beamSearchOutput(const size_t beams, const size_t iterations)
+{
+	const char seed = m_vocabs_indices[std::rand() % m_input_size];
+	std::vector<Candidate> top_candidates(beams);
+	std::vector<Eigen::ArrayXd> cell_states(beams);
+	std::vector<Eigen::ArrayXd> hidden_states(beams);
+
+	// Initiate the top_candidates vector
+	for (int i = 0; i < top_candidates.size(); i++) {
+		Candidate &candidate = top_candidates[i];
+		candidate.candidate_num = i;
+		candidate.sequence += seed;
+		candidate.probability = 0;
+		candidate.state = m_state;
+		candidate.hidden = m_h_t;
+	}
+
+	for (int i = 0; i < iterations; i++) {
+
+		std::vector<Candidate> all_candidates;
+
+		for (int j = 0; j < top_candidates.size(); j++) {
+
+			// Iterate through each top candidate
+			Candidate &candidate = top_candidates[j];
+
+			// Input to network is the last character of the candidate
+			Eigen::ArrayXd input = charToVector(candidate.sequence[candidate.sequence.length() - 1]);
+
+			// Load saved states from that candidate
+			m_state = candidate.state;
+			m_h_t = candidate.hidden;
+
+			// Feedforward and get the output probabilities
+			feedforward(input);
+
+			// Save the state from this candidate
+			cell_states[j] = m_state;
+			hidden_states[j] = m_h_t;
+
+			for (int k = 0; k < m_output.size(); k++) {
+				Candidate curr_candidate;
+				curr_candidate.candidate_num = j;
+				curr_candidate.sequence = candidate.sequence + m_vocabs_indices[k];
+				curr_candidate.probability = candidate.probability - std::log(m_output(k));
+				all_candidates.push_back(curr_candidate);
+			}
+
+			// If this is the first iteration, all candidates generate the same outputs, so just do it for the first candidate
+			if (i == 0)
+				break;
+		}
+
+		// Sort all candidates by the output probabilities
+		std::sort(all_candidates.begin(), all_candidates.end(), 
+				[] (const Candidate &a, const Candidate &b) { return a.probability < b.probability; });
+
+		// Update the top candidates with the info from the sorted list of all candidates
+		for (int j = 0; j < top_candidates.size(); j++) {
+
+			Candidate &old_candidate = top_candidates[j];
+			Candidate &new_candidate = all_candidates[j];
+
+			old_candidate.sequence = new_candidate.sequence;
+			old_candidate.probability = new_candidate.probability;
+			
+			old_candidate.state = cell_states[new_candidate.candidate_num];
+			old_candidate.hidden = hidden_states[new_candidate.candidate_num];
+		}
+	}
+
+	std::cout << top_candidates[0].sequence << std::endl;
 }
 
 void LSTM::saveTo(const std::string &filename)
