@@ -3,6 +3,7 @@
 LSTM::LSTM(size_t hidden_size, float learning_rate)
 	: m_hidden_size(hidden_size),
 	  m_rate(learning_rate),
+	  m_temperature(1.0),
 	  m_state_file("./weights.txt")
 {
 }
@@ -320,6 +321,11 @@ void LSTM::train(const size_t epochs, const size_t num_steps, const size_t lookb
 	m_infile.close();
 }
 
+void LSTM::setSoftmaxTemperature(const float temp)
+{
+	m_temperature = temp;
+}
+
 void LSTM::output(const size_t iterations)
 {
 	std::string output = "";
@@ -407,6 +413,7 @@ void LSTM::beamSearchOutput(const size_t beams, const size_t iterations)
 		}
 	}
 
+	// Output sequence with highest probability
 	std::cout << top_candidates[0].sequence << std::endl;
 }
 
@@ -497,8 +504,9 @@ void LSTM::loadState(const std::string &filename)
 		}
 
 		infile.close();
+
 	} else {
-		throw std::runtime_error("Unable to open file " + filename);
+		std::cout << "Could not open file " << filename << ". Initializing with random weights." << std::endl;
 	}
 }
 
@@ -529,7 +537,7 @@ void LSTM::clipGradients(T &parameter)
 
 Eigen::ArrayXd LSTM::softmax(const Eigen::ArrayXd &input)
 {
-	Eigen::ArrayXd probabilities = input.exp();
+	Eigen::ArrayXd probabilities = (input / m_temperature).exp();
 	double sum = probabilities.sum();
 
 	return probabilities / sum;

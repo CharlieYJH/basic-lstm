@@ -70,6 +70,9 @@ class LSTM
 	// Learning rate
 	float m_rate;
 
+	// Softmax temperature
+	float m_temperature;
+
 	// File containing training samples
 	std::ifstream m_infile;
 
@@ -135,6 +138,8 @@ class LSTM
 	void saveTo(const std::string &filename);
 
 	void loadState(const std::string &filename);
+
+	void setSoftmaxTemperature(const float temp);
 
 	void output(const size_t iterations);
 
