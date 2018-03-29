@@ -217,6 +217,9 @@ void LSTM::train(const size_t epochs, const size_t num_steps, const size_t lookb
 		// Reset hidden state and output at the start of each epoch
 		reset();
 
+		float temperature = m_temperature;
+		m_temperature = 1.0;
+
 		char curr_char = ' ';
 		char next_char = ' ';
 		double loss = 0;
@@ -308,13 +311,13 @@ void LSTM::train(const size_t epochs, const size_t num_steps, const size_t lookb
 				reset();
 		}
 
-		// Temporary placeholder for simulating learning rate decay
-		if (i + 1 % 10 == 0)
-			m_rate *= 0.5;
+		m_temperature = temperature;
 
 		saveState();
 		std::cout << "-------------------------------------------------------------------------" << std::endl;
-		std::cout << "Epoch " << i + 1 << "/" << epochs << ". State saved to " << m_state_file << ". Loss: " << last_loss << std::endl;
+		std::cout << "Epoch " << i + 1 << "/" << epochs << ". State saved to " << m_state_file << ". Loss: " << last_loss << ". LR: " << m_rate << std::endl;
+		std::cout << "-------------------------------------------------------------------------" << std::endl;
+		std::cout << "Sample: " << beamSearchOutput(4, 200) << std::endl;
 		std::cout << "-------------------------------------------------------------------------" << std::endl;
 	}
 
@@ -326,7 +329,7 @@ void LSTM::setSoftmaxTemperature(const float temp)
 	m_temperature = temp;
 }
 
-void LSTM::output(const size_t iterations)
+std::string LSTM::output(const size_t iterations)
 {
 	std::string output = "";
 
@@ -339,10 +342,10 @@ void LSTM::output(const size_t iterations)
 		output += outchar;
 	}
 
-	std::cout << output << std::endl;
+	return output;
 }
 
-void LSTM::beamSearchOutput(const size_t beams, const size_t iterations)
+std::string LSTM::beamSearchOutput(const size_t beams, const size_t iterations)
 {
 	const char seed = m_vocabs_indices[std::rand() % m_input_size];
 	std::vector<Candidate> top_candidates(beams);
@@ -416,7 +419,7 @@ void LSTM::beamSearchOutput(const size_t beams, const size_t iterations)
 	}
 
 	// Output sequence with highest probability
-	std::cout << top_candidates[0].sequence << std::endl;
+	return top_candidates[0].sequence;
 }
 
 void LSTM::saveStateTo(const std::string &filename)

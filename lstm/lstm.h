@@ -7,7 +7,6 @@
 #include <sstream>
 #include <cmath>
 #include <cstdlib>
-#include <ctime>
 #include <vector>
 #include <unordered_map>
 
@@ -141,9 +140,9 @@ class LSTM
 
 	void setSoftmaxTemperature(const float temp);
 
-	void output(const size_t iterations);
+	std::string output(const size_t iterations);
 
-	void beamSearchOutput(const size_t beams, const size_t iterations);
+	std::string beamSearchOutput(const size_t beams, const size_t iterations);
 };
 
 #endif
