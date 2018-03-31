@@ -4,6 +4,10 @@ LSTM::LSTM(size_t hidden_size, float learning_rate)
 	: m_hidden_size(hidden_size),
 	  m_rate(learning_rate),
 	  m_temperature(1.0),
+	  m_beta1(0.9),
+	  m_beta2(0.999),
+	  m_epsilon(0.00000001),
+	  m_update_iteration(0),
 	  m_state_file("./weights.txt")
 {
 }
@@ -31,6 +35,45 @@ void LSTM::reset(void)
 	m_h_t.setZero();
 	m_y_t.setZero();
 	m_output.setZero();
+}
+
+void LSTM::resetMomentums(void)
+{
+	m_m_Wa.setZero();
+	m_m_Wi.setZero();
+	m_m_Wf.setZero();
+	m_m_Wo.setZero();
+
+	m_m_Ra.setZero();
+	m_m_Ri.setZero();
+	m_m_Rf.setZero();
+	m_m_Ro.setZero();
+
+	m_m_ba.setZero();
+	m_m_bi.setZero();
+	m_m_bf.setZero();
+	m_m_bo.setZero();
+
+	m_v_Wa.setZero();
+	m_v_Wi.setZero();
+	m_v_Wf.setZero();
+	m_v_Wo.setZero();
+
+	m_v_Ra.setZero();
+	m_v_Ri.setZero();
+	m_v_Rf.setZero();
+	m_v_Ro.setZero();
+
+	m_v_ba.setZero();
+	m_v_bi.setZero();
+	m_v_bf.setZero();
+	m_v_bo.setZero();
+
+	m_m_Wy.setZero();
+	m_m_by.setZero();
+
+	m_v_Wy.setZero();
+	m_v_by.setZero();
 }
 
 void LSTM::feedforward(Eigen::ArrayXd &input)
@@ -168,6 +211,7 @@ void LSTM::backpropogate(
 		d_bo += d_o_t;
 	}
 
+	// Clip all gradients to prevent gradient explosions
 	clipGradients(d_Wa);
 	clipGradients(d_Wi);
 	clipGradients(d_Wf);
@@ -183,24 +227,74 @@ void LSTM::backpropogate(
 	clipGradients(d_Wy);
 	clipGradients(d_by);
 
+	m_update_iteration++;
+
+	adamUpdate(d_Wa, m_m_Wa, m_v_Wa, m_Wa);
+	adamUpdate(d_Wi, m_m_Wi, m_v_Wi, m_Wi);
+	adamUpdate(d_Wf, m_m_Wf, m_v_Wf, m_Wf);
+	adamUpdate(d_Wo, m_m_Wo, m_v_Wo, m_Wo);
+
+	adamUpdate(d_Ra, m_m_Ra, m_v_Ra, m_Ra);
+	adamUpdate(d_Ri, m_m_Ri, m_v_Ri, m_Ri);
+	adamUpdate(d_Rf, m_m_Rf, m_v_Rf, m_Rf);
+	adamUpdate(d_Ro, m_m_Ro, m_v_Ro, m_Ro);
+
+	adamUpdate(d_ba, m_m_ba, m_v_ba, m_ba);
+	adamUpdate(d_bi, m_m_bi, m_v_bi, m_bi);
+	adamUpdate(d_bf, m_m_bf, m_v_bf, m_bf);
+	adamUpdate(d_bo, m_m_bo, m_v_bo, m_bo);
+
+	adamUpdate(d_Wy, m_m_Wy, m_v_Wy, m_Wy);
+	adamUpdate(d_by, m_m_by, m_v_by, m_by);
+
 	// Update weights and biases
-	m_Wa -= (m_rate * d_Wa.array()).matrix();
-	m_Wi -= (m_rate * d_Wi.array()).matrix();
-	m_Wf -= (m_rate * d_Wf.array()).matrix();
-	m_Wo -= (m_rate * d_Wo.array()).matrix();
+	// m_Wa -= (m_rate * d_Wa.array()).matrix();
+	// m_Wi -= (m_rate * d_Wi.array()).matrix();
+	// m_Wf -= (m_rate * d_Wf.array()).matrix();
+	// m_Wo -= (m_rate * d_Wo.array()).matrix();
 
-	m_Ra -= (m_rate * d_Ra.array()).matrix();
-	m_Ri -= (m_rate * d_Ri.array()).matrix();
-	m_Rf -= (m_rate * d_Rf.array()).matrix();
-	m_Ro -= (m_rate * d_Ro.array()).matrix();
+	// m_Ra -= (m_rate * d_Ra.array()).matrix();
+	// m_Ri -= (m_rate * d_Ri.array()).matrix();
+	// m_Rf -= (m_rate * d_Rf.array()).matrix();
+	// m_Ro -= (m_rate * d_Ro.array()).matrix();
 
-	m_ba -= m_rate * d_ba;
-	m_bi -= m_rate * d_bi;
-	m_bf -= m_rate * d_bf;
-	m_bo -= m_rate * d_bo;
+	// m_ba -= m_rate * d_ba;
+	// m_bi -= m_rate * d_bi;
+	// m_bf -= m_rate * d_bf;
+	// m_bo -= m_rate * d_bo;
 
-	m_Wy -= (m_rate * d_Wy.array()).matrix();
-	m_by -= m_rate * d_by;
+	// m_Wy -= (m_rate * d_Wy.array()).matrix();
+	// m_by -= m_rate * d_by;
+}
+
+void LSTM::adamUpdate(Eigen::MatrixXd &gradient, Eigen::MatrixXd &m_t, Eigen::MatrixXd &v_t, Eigen::MatrixXd &weight)
+{
+	double iteration = (double)m_update_iteration;
+	double m_t_correct = 1 - std::pow(m_beta1, iteration);
+	double v_t_correct = 1 - std::pow(m_beta2, iteration);
+	double rate = m_rate * v_t_correct / m_t_correct;
+	
+	// Calculate moving average for the momentums and do bias correction
+	m_t = (m_beta1 * m_t.array() + (1 - m_beta1) * gradient.array());
+	v_t = (m_beta2 * v_t.array() + (1 - m_beta2) * gradient.array().square());
+
+	// Perform the update
+	weight -= (rate * (m_t.array() / (v_t.array().sqrt() + m_epsilon))).matrix();
+}
+
+void LSTM::adamUpdate(Eigen::ArrayXd &gradient, Eigen::ArrayXd &m_t, Eigen::ArrayXd &v_t, Eigen::ArrayXd &bias)
+{
+	double iteration = (double)m_update_iteration;
+	double m_t_correct = 1 - std::pow(m_beta1, iteration);
+	double v_t_correct = 1 - std::pow(m_beta2, iteration);
+	double rate = m_rate * v_t_correct / m_t_correct;
+
+	// Calculate moving average for the momentums and do bias correction
+	m_t = (m_beta1 * m_t + (1 - m_beta1) * gradient);
+	v_t = (m_beta2 * v_t + (1 - m_beta2) * gradient.square());
+
+	// Perform the update
+	bias -= rate * (m_t / (v_t.sqrt() + m_epsilon));
 }
 
 void LSTM::train(const size_t epochs, const size_t num_steps, const size_t lookback, const int reset_num)
@@ -634,4 +728,48 @@ void LSTM::initiateMatrices(void)
 	// Initialize fully connected layer output and softmax probabilities vector
 	m_y_t = Eigen::ArrayXd::Zero(m_output_size);
 	m_output = Eigen::ArrayXd::Zero(m_output_size);
+
+	// Initalize input weight 1st momentums
+	m_m_Wa = Eigen::MatrixXd::Zero(m_hidden_size, m_input_size);
+	m_m_Wi = Eigen::MatrixXd::Zero(m_hidden_size, m_input_size);
+	m_m_Wf = Eigen::MatrixXd::Zero(m_hidden_size, m_input_size);
+	m_m_Wo = Eigen::MatrixXd::Zero(m_hidden_size, m_input_size);
+
+	// Initialize recurrent weight 1st momentums
+	m_m_Ra = Eigen::MatrixXd::Zero(m_hidden_size, m_hidden_size);
+	m_m_Ri = Eigen::MatrixXd::Zero(m_hidden_size, m_hidden_size);
+	m_m_Rf = Eigen::MatrixXd::Zero(m_hidden_size, m_hidden_size);
+	m_m_Ro = Eigen::MatrixXd::Zero(m_hidden_size, m_hidden_size);
+
+	// Initialize bias 1st momentums
+	m_m_ba = Eigen::ArrayXd::Zero(m_hidden_size);
+	m_m_bi = Eigen::ArrayXd::Zero(m_hidden_size);
+	m_m_bf = Eigen::ArrayXd::Zero(m_hidden_size);
+	m_m_bo = Eigen::ArrayXd::Zero(m_hidden_size);
+
+	// Initialize input weight 2nd momentums
+	m_v_Wa = Eigen::MatrixXd::Zero(m_hidden_size, m_input_size);
+	m_v_Wi = Eigen::MatrixXd::Zero(m_hidden_size, m_input_size);
+	m_v_Wf = Eigen::MatrixXd::Zero(m_hidden_size, m_input_size);
+	m_v_Wo = Eigen::MatrixXd::Zero(m_hidden_size, m_input_size);
+
+	// Initialize recurrent weight 2nd momentums
+	m_v_Ra = Eigen::MatrixXd::Zero(m_hidden_size, m_hidden_size);
+	m_v_Ri = Eigen::MatrixXd::Zero(m_hidden_size, m_hidden_size);
+	m_v_Rf = Eigen::MatrixXd::Zero(m_hidden_size, m_hidden_size);
+	m_v_Ro = Eigen::MatrixXd::Zero(m_hidden_size, m_hidden_size);
+
+	// Initialize bias 2nd momentums
+	m_v_ba = Eigen::ArrayXd::Zero(m_hidden_size);
+	m_v_bi = Eigen::ArrayXd::Zero(m_hidden_size);
+	m_v_bf = Eigen::ArrayXd::Zero(m_hidden_size);
+	m_v_bo = Eigen::ArrayXd::Zero(m_hidden_size);
+
+	// Initialize fully connected layer weight and bias 1st momentums
+	m_m_Wy = Eigen::MatrixXd(m_output_size, m_hidden_size);
+	m_m_by = Eigen::ArrayXd(m_output_size);
+
+	// Initialize fully connected layer weight and bias 2nd momentums
+	m_v_Wy = Eigen::MatrixXd(m_output_size, m_hidden_size);
+	m_v_by = Eigen::ArrayXd(m_output_size);
 }

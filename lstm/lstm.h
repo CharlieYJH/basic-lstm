@@ -43,7 +43,6 @@ class LSTM
 	Eigen::ArrayXd m_bi;
 	Eigen::ArrayXd m_bf;
 	Eigen::ArrayXd m_bo;
-
 	// Internal State Vector
 	Eigen::ArrayXd m_state;
 
@@ -83,7 +82,62 @@ class LSTM
 	std::string m_state_file;
 	std::string m_sample_file;
 
+	// --------------------------------------------------------------------------
+	// ADAM Optimization Values
+	// --------------------------------------------------------------------------
+
+	double m_beta1;
+	double m_beta2;
+	double m_epsilon;
+	int m_update_iteration;
+
+	// Input Weight 1st Momentums
+	Eigen::MatrixXd m_m_Wa;
+	Eigen::MatrixXd m_m_Wi;
+	Eigen::MatrixXd m_m_Wf;
+	Eigen::MatrixXd m_m_Wo;
+
+	// Recurrent Weight 1st Momentums
+	Eigen::MatrixXd m_m_Ra;
+	Eigen::MatrixXd m_m_Ri;
+	Eigen::MatrixXd m_m_Rf;
+	Eigen::MatrixXd m_m_Ro;
+
+	// Bias 1st Momentums
+	Eigen::ArrayXd m_m_ba;
+	Eigen::ArrayXd m_m_bi;
+	Eigen::ArrayXd m_m_bf;
+	Eigen::ArrayXd m_m_bo;
+
+	// Input Weight 2nd Momentums
+	Eigen::MatrixXd m_v_Wa;
+	Eigen::MatrixXd m_v_Wi;
+	Eigen::MatrixXd m_v_Wf;
+	Eigen::MatrixXd m_v_Wo;
+
+	// Recurrent Weight 2nd Momentums
+	Eigen::MatrixXd m_v_Ra;
+	Eigen::MatrixXd m_v_Ri;
+	Eigen::MatrixXd m_v_Rf;
+	Eigen::MatrixXd m_v_Ro;
+
+	// Bias 2nd Momentums
+	Eigen::ArrayXd m_v_ba;
+	Eigen::ArrayXd m_v_bi;
+	Eigen::ArrayXd m_v_bf;
+	Eigen::ArrayXd m_v_bo;
+
+	// Fully Connected Layer 1st Momentums
+	Eigen::MatrixXd m_m_Wy;
+	Eigen::ArrayXd m_m_by;
+
+	// Fully Connected Layer 2nd Momentums
+	Eigen::MatrixXd m_v_Wy;
+	Eigen::ArrayXd m_v_by;
+
 	void reset(void);
+
+	void resetMomentums(void);
 
 	void feedforward(Eigen::ArrayXd &input);
 
@@ -99,6 +153,10 @@ class LSTM
 			std::vector<char> &label_cache,
 			const int lookback
 	);
+
+	void adamUpdate(Eigen::MatrixXd &gradient, Eigen::MatrixXd &m_t, Eigen::MatrixXd &v_t, Eigen::MatrixXd &weight);
+
+	void adamUpdate(Eigen::ArrayXd &gradient, Eigen::ArrayXd &m_t, Eigen::ArrayXd &v_t, Eigen::ArrayXd &bias);
 
 	void saveState(void);
 
