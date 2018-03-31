@@ -82,6 +82,9 @@ class LSTM
 	std::string m_state_file;
 	std::string m_sample_file;
 
+	// Flag to indicate there's a sample loaded
+	bool m_sample_loaded;
+
 	// --------------------------------------------------------------------------
 	// ADAM Optimization Values
 	// --------------------------------------------------------------------------
@@ -197,6 +200,8 @@ class LSTM
 	void loadState(const std::string &filename);
 
 	void setSoftmaxTemperature(const float temp);
+
+	void setAdamParams(const double beta1, const double beta2, const double epsilon);
 
 	std::string output(const size_t iterations);
 

@@ -8,7 +8,8 @@ LSTM::LSTM(size_t hidden_size, float learning_rate)
 	  m_beta2(0.999),
 	  m_epsilon(0.00000001),
 	  m_update_iteration(0),
-	  m_state_file("./weights.txt")
+	  m_state_file("./weights.txt"),
+	  m_sample_loaded(false)
 {
 }
 
@@ -27,6 +28,8 @@ void LSTM::load(const std::string &filename)
 	initiateMatrices();
 
 	m_infile.close();
+
+	m_sample_loaded = true;
 }
 
 void LSTM::reset(void)
@@ -423,8 +426,18 @@ void LSTM::setSoftmaxTemperature(const float temp)
 	m_temperature = temp;
 }
 
+void LSTM::setAdamParams(const double beta1, const double beta2, const double epsilon)
+{
+	m_beta1 = beta1;
+	m_beta2 = beta2;
+	m_epsilon = epsilon;
+}
+
 std::string LSTM::output(const size_t iterations)
 {
+	if (!m_sample_loaded)
+		throw std::runtime_error("No sample file loaded. Unable to generate input and output vectors.");
+
 	std::string output = "";
 
 	Eigen::ArrayXd input = charToVector(m_vocabs_indices[std::rand() % m_input_size]);
@@ -441,6 +454,9 @@ std::string LSTM::output(const size_t iterations)
 
 std::string LSTM::beamSearchOutput(const size_t beams, const size_t iterations)
 {
+	if (!m_sample_loaded)
+		throw std::runtime_error("No sample file loaded. Unable to generate input and output vectors.");
+
 	const char seed = m_vocabs_indices[std::rand() % m_input_size];
 	std::vector<Candidate> top_candidates(beams);
 	std::vector<Eigen::ArrayXd> cell_states(beams);
