@@ -161,8 +161,6 @@ class LSTM
 
 	void adamUpdate(Eigen::ArrayXd &gradient, Eigen::ArrayXd &m_t, Eigen::ArrayXd &v_t, Eigen::ArrayXd &bias);
 
-	void saveState(void);
-
 	template<typename T>
 	void writeData(const T &data, const std::string &id, std::ofstream &outfile);
 
@@ -190,6 +188,8 @@ class LSTM
 	public:
 
 	LSTM(size_t hidden_size, float learning_rate);
+
+	void saveState(void);
 
 	void load(const std::string &filename);
 

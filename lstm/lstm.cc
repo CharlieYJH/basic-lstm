@@ -435,8 +435,8 @@ void LSTM::setAdamParams(const double beta1, const double beta2, const double ep
 
 std::string LSTM::output(const size_t iterations)
 {
-	if (!m_sample_loaded)
-		throw std::runtime_error("No sample file loaded. Unable to generate input and output vectors.");
+	// if (!m_sample_loaded)
+		// throw std::runtime_error("No sample file loaded. Unable to generate input and output vectors.");
 
 	std::string output = "";
 
@@ -454,8 +454,8 @@ std::string LSTM::output(const size_t iterations)
 
 std::string LSTM::beamSearchOutput(const size_t beams, const size_t iterations)
 {
-	if (!m_sample_loaded)
-		throw std::runtime_error("No sample file loaded. Unable to generate input and output vectors.");
+	// if (!m_sample_loaded)
+		// throw std::runtime_error("No sample file loaded. Unable to generate input and output vectors.");
 
 	const char seed = m_vocabs_indices[std::rand() % m_input_size];
 	std::vector<Candidate> top_candidates(beams);
@@ -542,6 +542,18 @@ void LSTM::saveState(void)
 	std::ofstream outfile(m_state_file);
 
 	if (outfile.is_open()) {
+
+		// Write layer dimensions
+		outfile << "Size" << '\t' << m_input_size << '\t' << m_hidden_size << '\t' << m_output_size << "\r\n";
+
+		// Write vocab list
+		outfile << "Vocab" << '\t';
+		for (std::pair<char, int> element : m_vocabs) {
+			outfile << (int)element.first << ':' << element.second << '\t';
+		}
+		outfile << "\r\n";
+
+		// Write weights
 		writeData(m_Wa, "Wa", outfile);
 		writeData(m_Wi, "Wi", outfile);
 		writeData(m_Wf, "Wf", outfile);
@@ -557,6 +569,7 @@ void LSTM::saveState(void)
 		writeData(m_Wy, "Wy", outfile);
 		writeData(m_by, "by", outfile);
 		outfile.close();
+
 	} else {
 		throw std::runtime_error("Unable to open " + m_state_file);
 	}
@@ -583,9 +596,71 @@ void LSTM::loadState(const std::string &filename)
 	if (infile.is_open()) {
 		std::string line;
 		std::string id;
+		std::istringstream data;
 
+		// Get matrix and vector sizes;
+		getline(infile, line);
+		data.str(line);
+		data >> id;
+
+		// Initiate saved matrix sizes
+		if (id == "Size") {
+
+			size_t input_size;
+			size_t hidden_size;
+			size_t output_size;
+
+			data >> input_size;
+			data >> hidden_size;
+			data >> output_size;
+
+			// If a sample was loaded, layer sizes are already configured, so make sure they match before loading in the saved settings
+			if (m_sample_loaded && (m_input_size != input_size || m_hidden_size != hidden_size || m_output_size != output_size)) {
+				std::cerr << "Layer dimensions set from the sample doesn't match the dimensions on the file. Aborting load." << std::endl;
+				return;
+			}
+
+			m_input_size = input_size;
+			m_hidden_size = hidden_size;
+			m_output_size = output_size;
+
+			initiateMatrices();
+
+		} else {
+			throw std::runtime_error("Invalid input file format.");
+		}
+
+		// Get line containing the vocabs list
+		getline(infile, line);
+		data.str(line);
+		data.clear();
+		data >> id;
+
+		// Initiate saved vocab list
+		if (id == "Vocab") {
+
+				std::string vocab;
+
+				while (getline(data, vocab, '\t')) {
+
+					int pos = vocab.find(":");
+					if (pos == std::string::npos) continue;
+
+					char c = (char)stoi(vocab.substr(0, pos));
+					int index = stoi(vocab.substr(pos + 1));
+
+					m_vocabs[c] = index;
+					m_vocabs_indices[index] = c;
+				}
+
+		} else {
+			throw std::runtime_error("Invalid input file format.");
+		}
+
+		// Get all the saved weights and biases
 		while (getline(infile, line)) {
-			std::istringstream data(line);
+			data.str(line);
+			data.clear();
 			data >> id;
 
 			if (id == "Wa")
@@ -616,12 +691,17 @@ void LSTM::loadState(const std::string &filename)
 				loadData(m_Wy, data);
 			else if (id == "by")
 				loadData(m_by, data);
+			else
+				throw std::runtime_error("Invalid input file format.");
 		}
 
 		infile.close();
 
 	} else {
-		std::cout << "Could not open file " << filename << ". Initializing with random weights." << std::endl;
+		if (!m_sample_loaded)
+			throw std::runtime_error("Could not open file " + filename + ". Please load in a sample to initialize parameters.");
+		else
+			std::cerr << "Could not open file " << filename << ". Parameters initialized randomly." << std::endl;
 	}
 }
 

@@ -11,7 +11,6 @@ int main(int argc, char const* argv[])
 	network.setSoftmaxTemperature(3.0);
 	// network.saveStateTo("./data/weights.txt");
 	// network.train(300, 100, 100, 25);
-	// std::cout << network.output(1000) << std::endl;
 	std::cout << network.beamSearchOutput(4, 5000) << std::endl;
 	return 0;
 }
